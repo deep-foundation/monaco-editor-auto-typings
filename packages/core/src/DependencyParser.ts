@@ -1,16 +1,22 @@
 import { ImportResourcePath } from './ImportResourcePath';
 import * as path from 'path';
 export class DependencyParser {
-  private REGEX_DETECT_IMPORT =
-    /(?:(?:(?:import)|(?:export))(?:.)*?from\s+["']([^"']+)["'])|(?:((?:require|import))(?:\s+)?\(["']([^"']+)["']\))|(?:\/+\s+<reference\s+path=["']([^"']+)["']\s+\/>)/g;
   private REGEX_NODE_MODULE = /^node:([\w\W\/]+)$/;
 
   public parseDependencies(source: string, parent: ImportResourcePath | string): ImportResourcePath[] {
-    const cleaned = source; // source.replace(this.REGEX_CLEAN, '');
-    return [...cleaned.matchAll(this.REGEX_DETECT_IMPORT)]
-      .map(x => x[1] ?? x[2] ?? x[3])
-      .filter(x => !!x)
-      .map(imp => this.resolvePath(imp, parent));
+    const importRegex = /(import .+ from ?['"](?<importPath>.+?)['"])/g;
+    const dynamicImportRegex = /(await import ?\(['"](?<importPath>.+?)['"]\))/g
+    const cjsRequireRegex = /(require ?\(['"](?<importPath>.+?)['"]\))/g
+
+    const matches = [
+      ...source.matchAll(importRegex),
+      ...source.matchAll(dynamicImportRegex),
+      ...source.matchAll(cjsRequireRegex)
+    ]
+    const importPaths = matches.map(match => match.groups!.importPath)
+    const result = importPaths.map(imp => this.resolvePath(imp, parent));
+
+    return result
   }
 
   private resolvePath(importPath: string, parent: ImportResourcePath | string): ImportResourcePath {

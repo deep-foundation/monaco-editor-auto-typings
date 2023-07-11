@@ -7,6 +7,8 @@ import * as path from 'path';
 import type * as monaco from 'monaco-editor';
 import { invokeUpdate } from './invokeUpdate';
 import { RecursionDepth } from './RecursionDepth';
+import createDebugMessages from 'debug'
+import { PACKAGE_NAME } from './packageName';
 
 type Editor = monaco.editor.ICodeEditor | monaco.editor.IStandaloneCodeEditor;
 
@@ -16,10 +18,17 @@ export class AutoTypingsCore implements monaco.IDisposable {
   private debounceTimer?: number;
   private isResolving?: boolean;
   private disposables: monaco.IDisposable[];
+  private options: Options;
+  private editor: Editor;
 
-  public constructor(private editor: Editor, private options: Options) {
+  public constructor(param: {editor: Editor, options: Options}) {
+    const debug = createDebugMessages(`${PACKAGE_NAME}:AutoTypingsCore:constructor`)
+    debug({param})
+    const { editor, options } = param;
+    this.options = options;
+    this.editor = editor;
     this.disposables = [];
-    this.importResolver = new ImportResolver(options);
+    this.importResolver = new ImportResolver({options});
     const changeModelDisposable = editor.onDidChangeModelContent(e => {
       this.debouncedResolveContents();
     });
@@ -35,31 +44,38 @@ export class AutoTypingsCore implements monaco.IDisposable {
     }
   }
 
-  public static async create(editor: Editor, options?: Partial<Options>): Promise<AutoTypingsCore> {
+  public static async create(param: {editor: Editor, options?: Partial<Options>}): Promise<AutoTypingsCore> {
+    const debug = createDebugMessages(`${PACKAGE_NAME}:AutoTypingsCore:create`)
+    debug({param})
+    const { editor, options } = param;
+
     if (options?.shareCache && options.sourceCache && !AutoTypingsCore.sharedCache) {
       AutoTypingsCore.sharedCache = options.sourceCache;
     }
 
     const monacoInstance = options?.monaco;
+    debug({monacoInstance})
 
     if (!monacoInstance) {
       throw new Error('monacoInstance not found, you can specify the monaco instance via options.monaco');
     }
 
-    return new AutoTypingsCore(editor, {
-      fileRootPath: 'inmemory://model/',
-      onlySpecifiedPackages: false,
-      preloadPackages: false,
-      shareCache: false,
-      dontAdaptEditorOptions: false,
-      dontRefreshModelValueAfterResolvement: false,
-      sourceCache: AutoTypingsCore.sharedCache ?? new DummySourceCache(),
-      sourceResolver: new UnpkgSourceResolver(),
-      debounceDuration: 4000,
-      fileRecursionDepth: 10,
-      packageRecursionDepth: 3,
-      ...options,
-      monaco: monacoInstance,
+    return new AutoTypingsCore({
+      editor,
+      options: {
+        fileRootPath: 'inmemory://model/',
+        onlySpecifiedPackages: false,
+        preloadPackages: false,
+        shareCache: false,
+        dontAdaptEditorOptions: false,
+        dontRefreshModelValueAfterResolvement: false,
+        sourceCache: AutoTypingsCore.sharedCache ?? new DummySourceCache(),
+        sourceResolver: new UnpkgSourceResolver(),
+        debounceDuration: 4000,
+        fileRecursionDepth: 10,
+        packageRecursionDepth: 3,
+        monaco: monacoInstance
+      } 
     });
   }
 

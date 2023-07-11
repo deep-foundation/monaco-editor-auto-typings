@@ -14,6 +14,8 @@ import { SourceResolver } from './SourceResolver';
 import * as path from 'path';
 import { invokeUpdate } from './invokeUpdate';
 import { RecursionDepth } from './RecursionDepth';
+import createDebugMessages from 'debug';
+import { PACKAGE_NAME } from './packageName';
 
 export class ImportResolver {
   private loadedFiles: string[];
@@ -23,8 +25,13 @@ export class ImportResolver {
   private versions?: { [packageName: string]: string };
   private newImportsResolved: boolean;
   private monaco: typeof monaco;
+  private options: Options;
 
-  constructor(private options: Options) {
+  constructor(param: {options: Options}) {
+    const debug = createDebugMessages(`${PACKAGE_NAME}:ImportResolver:constructor`)
+    debug({param})
+    const { options } = param;
+    this.options = options;
     this.loadedFiles = [];
     this.dependencyParser = new DependencyParser();
     this.cache = options.sourceCache;
@@ -37,11 +44,13 @@ export class ImportResolver {
       for (const [packageName, version] of Object.entries(options.versions)) {
         this.resolveImport(
           {
-            kind: 'package',
-            packageName: packageName,
-            importPath: '',
-          },
-          new RecursionDepth(this.options)
+            importResource: {
+              kind: 'package',
+              packageName: packageName,
+              importPath: '',
+            },
+            depth: new RecursionDepth(this.options)
+          }
         ).catch(e => {
           console.error(e);
         });
@@ -62,10 +71,10 @@ export class ImportResolver {
       return;
     }
 
-    const imports = this.dependencyParser.parseDependencies(source, parent);
+    const imports = this.dependencyParser.parseDependencies({parent,source});
     for (const importCall of imports) {
       try {
-        await this.resolveImport(importCall, depth);
+        await this.resolveImport({importResource: importCall, depth});
       } catch (e) {
         if (this.options.onError) {
           this.options.onError?.((e as Error).message ?? e);
@@ -76,7 +85,10 @@ export class ImportResolver {
     }
   }
 
-  private async resolveImport(importResource: ImportResourcePath, depth: RecursionDepth) {
+  private async resolveImport(param: {importResource: ImportResourcePath, depth: RecursionDepth}) {
+    const debug = createDebugMessages(`${PACKAGE_NAME}:ImportResolver:resolveImport`)
+    debug({param})
+    const { importResource, depth } = param;
     const hash = this.hashImportResourcePath(importResource);
     if (this.loadedFiles.includes(hash)) {
       return;

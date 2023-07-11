@@ -1,20 +1,31 @@
 import { ImportResourcePath } from './ImportResourcePath';
 import * as path from 'path';
+import getDebugger from 'debug';
+import { PACKAGE_NAME } from './packageName';
+
 export class DependencyParser {
   private REGEX_NODE_MODULE = /^node:([\w\W\/]+)$/;
 
-  public parseDependencies(source: string, parent: ImportResourcePath | string): ImportResourcePath[] {
+  public parseDependencies(param: {source: string, parent: ImportResourcePath | string}): ImportResourcePath[] {
+    const { source, parent } = param;
+    const debug = getDebugger(`${PACKAGE_NAME}:DependencyParser:parseDependencies`);
     const importRegex = /(import .+ from ?['"](?<importPath>.+?)['"])/g;
+    debug({importRegex})
     const dynamicImportRegex = /(await import ?\(['"](?<importPath>.+?)['"]\))/g
+    debug({dynamicImportRegex})
     const cjsRequireRegex = /(require ?\(['"](?<importPath>.+?)['"]\))/g
+    debug({cjsRequireRegex})
 
     const matches = [
       ...source.matchAll(importRegex),
       ...source.matchAll(dynamicImportRegex),
       ...source.matchAll(cjsRequireRegex)
     ]
+    debug({matches})
     const importPaths = matches.map(match => match.groups!.importPath)
+    debug({importPaths})
     const result = importPaths.map(imp => this.resolvePath(imp, parent));
+    debug({result})
 
     return result
   }

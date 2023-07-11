@@ -20,6 +20,7 @@
     "prettier:write": "prettier --write ."
   },
   "devDependencies": {
+    "@types/debug": "^4.1.8",
     "copy": "^0.3.2",
     "lerna": "^3.22.1",
     "prettier": "^2.2.1"
@@ -30,5 +31,8 @@
   "volta": {
     "node": "16.20.0",
     "yarn": "1.22.19"
+  },
+  "dependencies": {
+    "debug": "^4.3.4"
   }
 }
